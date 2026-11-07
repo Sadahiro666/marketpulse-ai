@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarketPulse AI — Автоматизация карточек товаров для Маркетплейсов</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            900: '#0c4a6e',
+                        },
+                        dark: {
+                            bg: '#090d16',
+                            card: '#111827',
+                            border: '#1f2937',
+                            hover: '#1e293b'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #090d16;
+            color: #f3f4f6;
+        }
+        .glow-effect {
+            box-shadow: 0 0 50px -12px rgba(56, 189, 248, 0.25);
+        }
+        .glow-button {
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+            transition: all 0.3s ease;
+        }
+        .glow-button:hover {
+            box-shadow: 0 0 30px rgba(56, 189, 248, 0.7);
+        }
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(56, 189, 248, 0.3);
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(56, 189, 248, 0.6);
+        }
+        /* Toast Notification Styles */
+        #toast-container {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .toast {
+            animation: slideIn 0.3s ease forwards;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-dark-bg text-gray-100 min-h-screen flex flex-col selection:bg-brand-400 selection:text-black">
+
+    <!-- Toast Container for Notifications -->
+    <div id="toast-container"></div>
+
+    <!-- Header / Navbar -->
+    <header class="sticky top-0 z-50 glass-panel border-b border-dark-border">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo -->
+                <div class="flex items-center space-x-3 cursor-pointer" onclick="switchViewMode('landing')">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-brand-400 flex items-center justify-center text-black font-extrabold shadow-lg shadow-brand-500/20">
+                        <i data-lucide="sparkles" class="w-6 h-6 text-black"></i>
+                    </div>
+                    <span class="text-xl font-bold tracking-tight text-white">Market<span class="text-brand-400">Pulse</span> AI</span>
+                </div>
+
+                <!-- Mode Switcher & Nav Links -->
+                <nav id="landing-nav" class="hidden md:flex space-x-8 text-sm font-medium text-gray-400">
+                    <a href="#demo" class="hover:text-brand-400 transition-colors">Демо</a>
+                    <a href="#features" class="hover:text-brand-400 transition-colors">Возможности</a>
+                    <a href="#pricing" class="hover:text-brand-400 transition-colors">Тарифы</a>
+                    <a href="#faq" class="hover:text-brand-400 transition-colors">FAQ</a>
+                </nav>
+
+                <nav id="app-nav" class="hidden md:flex space-x-6 text-sm font-medium text-gray-400">
+                    <button onclick="switchAppTab('generator')" id="app-tab-btn-generator" class="app-tab-btn text-brand-400 font-semibold flex items-center gap-1.5 py-1 border-b-2 border-brand-400">
+                        <i data-lucide="wand-2" class="w-4 h-4"></i> Генератор
+                    </button>
+                    <button onclick="switchAppTab('history')" id="app-tab-btn-history" class="app-tab-btn hover:text-white flex items-center gap-1.5 py-1">
+                        <i data-lucide="history" class="w-4 h-4"></i> Моя история (<span id="history-count-badge">0</span>)
+                    </button>
+                    <button onclick="switchAppTab('previewer')" id="app-tab-btn-previewer" class="app-tab-btn hover:text-white flex items-center gap-1.5 py-1">
+                        <i data-lucide="eye" class="w-4 h-4"></i> Превью карточки
+                    </button>
+                    <button onclick="switchAppTab('analytics')" id="app-tab-btn-analytics" class="app-tab-btn hover:text-white flex items-center gap-1.5 py-1">
+                        <i data-lucide="line-chart" class="w-4 h-4"></i> ROI & Аналитика
+                    </button>
+                </nav>
+
+                <!-- Action Buttons & Settings -->
+                <div class="flex items-center space-x-3">
+                    <button onclick="openSettingsModal()" class="p-2 text-gray-400 hover:text-white glass-panel rounded-lg border border-dark-border transition-colors" title="Настройки API">
+                        <i data-lucide="settings" class="w-4 h-4"></i>
+                    </button>
+
+                    <div id="landing-actions" class="flex items-center space-x-3">
+                        <button onclick="switchViewMode('app')" class="bg-gradient-to-r from-brand-500 to-brand-400 hover:from-brand-400 hover:to-brand-500 text-black font-semibold text-sm px-4 py-2 rounded-lg glow-button flex items-center space-x-2">
+                            <span>Открыть Дашборд</span>
+                            <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+
+                    <div id="app-actions" class="hidden flex items-center space-x-3">
+                        <div class="flex items-center gap-2 bg-dark-card border border-dark-border px-3 py-1.5 rounded-lg text-xs">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span class="text-gray-300 font-mono">Пакет: <strong class="text-brand-400">PRO</strong></span>
+                        </div>
+                        <button onclick="switchViewMode('landing')" class="text-xs text-gray-400 hover:text-white px-2 py-1">Выход</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow">
+        
+        <!-- ================= LANDING PAGE VIEW ================= -->
+        <div id="view-landing" class="view-mode">
+            <!-- Hero Section -->
+            <section class="relative pt-16 pb-24 overflow-hidden">
+                <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-brand-500/10 blur-[120px] rounded-full pointer-events-none"></div>
+                
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+                    <div class="text-center max-w-3xl mx-auto mb-12">
+                        <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-400/20 text-brand-400 text-xs font-semibold uppercase tracking-wider mb-6">
+                            <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+                            <span>Топовый SEO-генератор 2026 года</span>
+                        </div>
+                        <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-white leading-tight mb-6">
+                            Продающие карточки для Wildberries и Ozon <span class="bg-clip-text text-transparent bg-gradient-to-r from-brand-400 via-sky-300 to-blue-500">за 10 секунд</span>
+                        </h1>
+                        <p class="text-lg text-gray-400 leading-relaxed mb-8">
+                            AI-платформа автоматически создает SEO-оптимизированные описания, подбирает высокочастотные ключи и формирует ТЗ для инфографики. Увеличьте CTR и продажи без копирайтеров.
+                        </p>
+                        <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                            <button onclick="switchViewMode('app')" class="w-full sm:w-auto bg-brand-400 hover:bg-brand-500 text-black font-bold px-8 py-4 rounded-xl text-base glow-button flex items-center justify-center space-x-2 transition-all">
+                                <i data-lucide="sparkles" class="w-5 h-5"></i>
+                                <span>Запустить AI Дашборд</span>
+                            </button>
+                            <a href="#features" class="w-full sm:w-auto glass-panel hover:bg-gray-800 text-gray-300 hover:text-white px-8 py-4 rounded-xl text-base font-medium border border-dark-border transition-all flex items-center justify-center space-x-2">
+                                <i data-lucide="play-circle" class="w-5 h-5 text-brand-400"></i>
+                                <span>Возможности платформы</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Quick Demo Container -->
+                    <div id="demo" class="glass-panel rounded-2xl p-6 sm:p-8 glow-effect max-w-4xl mx-auto border border-brand-500/20">
+                        <div class="flex items-center justify-between pb-4 mb-6 border-b border-dark-border">
+                            <div class="flex items-center space-x-2">
+                                <span class="w-3 h-3 rounded-full bg-red-500"></span>
+                                <span class="w-3 h-3 rounded-full bg-yellow-500"></span>
+                                <span class="w-3 h-3 rounded-full bg-green-500"></span>
+                                <span class="text-xs font-mono text-gray-400 ml-2">MarketPulse AI Interactive Demo</span>
+                            </div>
+                            <span class="text-xs bg-brand-500/10 text-brand-400 px-2.5 py-1 rounded border border-brand-400/20 font-medium">Попробуйте прямо сейчас</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Название товара</label>
+                                    <input type="text" id="demo-title" value="Массажная подушка для шеи и спины" class="w-full bg-dark-card border border-dark-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-400">
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-300 uppercase mb-1.5">Маркетплейс</label>
+                                        <select id="demo-platform" class="w-full bg-dark-card border border-dark-border rounded-lg px-3 py-2 text-xs text-white">
+                                            <option value="Wildberries">Wildberries</option>
+                                            <option value="Ozon">Ozon</option>
+                                            <option value="Яндекс.Маркет">Яндекс.Маркет</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-300 uppercase mb-1.5">Тон</label>
+                                        <select id="demo-tone" class="w-full bg-dark-card border border-dark-border rounded-lg px-3 py-2 text-xs text-white">
+                                            <option value="Продающий / Агрессивный">Продающий</option>
+                                            <option value="Премиальный">Премиальный</option>
+                                            <option value="Лаконичный SEO">Лаконичный SEO</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-300 uppercase mb-1.5">Характеристики</label>
+                                    <textarea id="demo-features" rows="2" class="w-full bg-dark-card border border-dark-border rounded-lg p-2.5 text-xs text-white resize-none">ИК-подогрев, 3 скорости, автоотключение, ролик Shiatsu</textarea>
+                                </div>
+                                <button onclick="runQuickDemo()" class="w-full bg-brand-400 hover:bg-brand-500 text-black font-bold py-3 rounded-lg text-xs transition-all flex items-center justify-center space-x-2 glow-button">
+                                    <i data-lucide="sparkles" class="w-4 h-4"></i>
+                                    <span>Быстрый тест AI</span>
+                                </button>
+                            </div>
+
+                            <div class="bg-dark-card border border-dark-border rounded-xl p-4 flex flex-col justify-between relative min-h-[260px]">
+                                <div id="demo-loader" class="hidden absolute inset-0 bg-dark-card/90 rounded-xl flex flex-col items-center justify-center space-y-2 z-10">
+                                    <div class="w-7 h-7 border-2 border-brand-400 border-t-transparent rounded-full animate-spin"></div>
+                                    <span class="text-xs text-brand-400 font-medium">Генерация...</span>
+                                </div>
+                                <div id="demo-output-text" class="text-xs text-gray-300 space-y-2 overflow-y-auto max-h-[220px] custom-scrollbar pr-1 leading-relaxed">
+                                    <p class="text-gray-500 italic">Нажмите кнопку "Быстрый тест AI" для демонстрации результата...</p>
+                                </div>
+                                <div class="pt-2 border-t border-dark-border flex justify-between text-[10px] text-gray-500">
+                                    <span>Статус: Готов</span>
+                                    <button onclick="switchViewMode('app')" class="text-brand-400 hover:underline">Перейти в рабочий дашборд →</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Features Tabs Section -->
+            <section id="features" class="py-20 bg-dark-card/40 border-y border-dark-border">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="text-center max-w-3xl mx-auto mb-16">
+                        <h2 class="text-3xl font-bold text-white mb-3">Все инструменты селлера в одном месте</h2>
+                        <p class="text-gray-400 text-sm">От подбора ключей до визуального превью карточек WB & Ozon</p>
+                    </div>
+
+                    <div class="flex flex-wrap justify-center gap-3 mb-10">
+                        <button onclick="switchTab('tab-seo')" id="btn-tab-seo" class="feature-tab-btn bg-brand-500/10 text-brand-400 border-brand-400/30 px-5 py-2.5 rounded-xl text-xs font-semibold border flex items-center space-x-2">
+                            <i data-lucide="search" class="w-4 h-4"></i>
+                            <span>Умное SEO</span>
+                        </button>
+                        <button onclick="switchTab('tab-description')" id="btn-tab-description" class="feature-tab-btn bg-dark-card text-gray-400 border-dark-border px-5 py-2.5 rounded-xl text-xs font-semibold border flex items-center space-x-2">
+                            <i data-lucide="file-code" class="w-4 h-4"></i>
+                            <span>Генератор Описаний</span>
+                        </button>
+                        <button onclick="switchTab('tab-infographic')" id="btn-tab-infographic" class="feature-tab-btn bg-dark-card text-gray-400 border-dark-border px-5 py-2.5 rounded-xl text-xs font-semibold border flex items-center space-x-2">
+                            <i data-lucide="layout-grid" class="w-4 h-4"></i>
+                            <span>ТЗ для Инфографики</span>
+                        </button>
+                    </div>
+
+                    <div class="max-w-4xl mx-auto glass-panel p-6 sm:p-8 rounded-2xl border border-dark-border">
+                        <div id="tab-seo" class="tab-content space-y-4">
+                            <h3 class="text-xl font-bold text-white">Автоматический подбор высокочастотных ключей</h3>
+                            <p class="text-gray-400 text-sm leading-relaxed">
+                                Анализ выдачи Wildberries и Ozon с распределением ключей по релевантности и интеграцией в текст без переспама.
+                            </p>
+                            <div class="flex flex-wrap gap-2 pt-2">
+                                <span class="bg-brand-500/20 text-brand-300 text-xs px-3 py-1 rounded-full border border-brand-400/30">массажер для шеи (145к)</span>
+                                <span class="bg-brand-500/20 text-brand-300 text-xs px-3 py-1 rounded-full border border-brand-400/30">подарок маме (98к)</span>
+                                <span class="bg-dark-card text-gray-300 text-xs px-3 py-1 rounded-full border border-dark-border">подушка массажная (54к)</span>
+                            </div>
+                        </div>
+                        <div id="tab-description" class="tab-content hidden space-y-4">
+                            <h3 class="text-xl font-bold text-white">Продающая структурированная подача</h3>
+                            <p class="text-gray-400 text-sm leading-relaxed">
+                                Создает завлекающее начало, блоки преимуществ, выгоды и призыв к покупке.
+                            </p>
+                        </div>
+                        <div id="tab-infographic" class="tab-content hidden space-y-4">
+                            <h3 class="text-xl font-bold text-white">ТЗ для дизайнера и Буллет-поинты</h3>
+                            <p class="text-gray-400 text-sm leading-relaxed">
+                                Автоматическое разбиение характеристик на 4-6 ключевых тезисов для первого и второго слайдов инфографики.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Pricing Section -->
+            <section id="pricing" class="py-20 relative">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="text-center max-w-3xl mx-auto mb-12">
+                        <h2 class="text-3xl font-bold text-white mb-3">Прозрачные тарифы</h2>
+                        <div class="flex items-center justify-center space-x-4 mt-6">
+                            <span class="text-xs text-gray-400">Ежемесячно</span>
+                            <button onclick="toggleBillingPeriod()" id="billing-toggle" class="w-12 h-6 bg-dark-card border border-brand-400/40 rounded-full p-0.5 relative">
+                                <div id="toggle-circle" class="w-5 h-5 bg-brand-400 rounded-full transition-transform"></div>
+                            </button>
+                            <span class="text-xs text-white font-medium">Ежегодно (-20%)</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                        <div class="glass-panel rounded-2xl p-6 border border-dark-border flex flex-col justify-between">
+                            <div>
+                                <h3 class="text-lg font-bold text-white mb-1">Старт</h3>
+                                <p class="text-xs text-gray-400 mb-4">Для начинающих продавцов</p>
+                                <div class="mb-6">
+                                    <span class="text-3xl font-extrabold text-white plan-price" data-monthly="990" data-annual="790">990</span>
+                                    <span class="text-gray-400 text-xs"> ₽ / мес</span>
+                                </div>
+                                <ul class="space-y-2.5 text-xs text-gray-300 mb-6">
+                                    <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-brand-400"></i> 20 генераций в месяц</li>
+                                    <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-brand-400"></i> SEO карточки WB</li>
+                                </ul>
+                            </div>
+                            <button onclick="switchViewMode('app')" class="w-full bg-dark-card hover:bg-gray-800 text-white text-xs font-semibold py-2.5 rounded-lg border border-dark-border">Выбрать</button>
+                        </div>
+
+                        <div class="glass-panel rounded-2xl p-6 border-2 border-brand-400 relative flex flex-col justify-between glow-effect">
+                            <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand-400 text-black text-[10px] font-bold px-3 py-0.5 rounded-full uppercase">Популярный</div>
+                            <div>
+                                <h3 class="text-lg font-bold text-white mb-1">Селлер PRO</h3>
+                                <p class="text-xs text-gray-400 mb-4">Для активных продаж</p>
+                                <div class="mb-6">
+                                    <span class="text-3xl font-extrabold text-white plan-price" data-monthly="2 490" data-annual="1 990">2 490</span>
+                                    <span class="text-gray-400 text-xs"> ₽ / мес</span>
+                                </div>
+                                <ul class="space-y-2.5 text-xs text-gray-300 mb-6">
+                                    <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-brand-400"></i> 150 генераций в месяц</li>
+                                    <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-brand-400"></i> WB, Ozon, Яндекс.Маркет</li>
+                                    <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-brand-400"></i> Интерактивное превью карточек</li>
+                                </ul>
+                            </div>
+                            <button onclick="switchViewMode('app')" class="w-full bg-brand-400 hover:bg-brand-500 text-black text-xs font-bold py-2.5 rounded-lg glow-button">Попробовать в дашборде</button>
+                        </div>
+
+                        <div class="glass-panel rounded-2xl p-6 border border-dark-border flex flex-col justify-between">
+                            <div>
+                                <h3 class="text-lg font-bold text-white mb-1">Бизнес</h3>
+                                <p class="text-xs text-gray-400 mb-4">Для агентств и крупных брендов</p>
+                                <div class="mb-6">
+                                    <span class="text-3xl font-extrabold text-white plan-price" data-monthly="5 990" data-annual="4 790">5 990</span>
+                                    <span class="text-gray-400 text-xs"> ₽ / мес</span>
+                                </div>
+                                <ul class="space-y-2.5 text-xs text-gray-300 mb-6">
+                                    <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-brand-400"></i> Безлимит генераций</li>
+                                    <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-brand-400"></i> Доступ по API</li>
+                                </ul>
+                            </div>
+                            <button onclick="switchViewMode('app')" class="w-full bg-dark-card hover:bg-gray-800 text-white text-xs font-semibold py-2.5 rounded-lg border border-dark-border">Связь</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+
+        <!-- ================= APP / WORKSPACE VIEW ================= -->
+        <div id="view-app" class="view-mode hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            
+            <!-- APP TAB 1: AI GENERATOR WORKSPACE -->
+            <div id="app-workspace-generator" class="app-workspace-tab space-y-6">
+                <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-dark-card border border-dark-border p-4 rounded-xl">
+                    <div>
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i data-lucide="wand-2" class="w-5 h-5 text-brand-400"></i>
+                            AI Генератор Продающих Карточек
+                        </h2>
+                        <p class="text-xs text-gray-400">Заполните параметры товара для генерации полных SEO-материалов</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="loadSampleData()" class="text-xs bg-dark-hover text-gray-300 hover:text-white px-3 py-1.5 rounded-lg border border-dark-border">Загрузить демо-товар</button>
+                        <button onclick="clearGeneratorForm()" class="text-xs text-gray-400 hover:text-red-400 px-3 py-1.5">Очистить</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <!-- Generator Form Inputs -->
+                    <div class="lg:col-span-5 glass-panel p-6 rounded-2xl border border-dark-border space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 uppercase mb-1.5">Наименование товара *</label>
+                            <input type="text" id="app-input-title" placeholder="Например: Увлажнитель воздуха ультразвуковой" class="w-full bg-dark-card border border-dark-border rounded-lg px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-brand-400">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-300 uppercase mb-1.5">Категория</label>
+                                <select id="app-input-category" class="w-full bg-dark-card border border-dark-border rounded-lg px-3 py-2 text-xs text-white">
+                                    <option value="Электроника">Электроника</option>
+                                    <option value="Одежда и Обувь">Одежда и Обувь</option>
+                                    <option value="Дом и Кухня">Дом и Кухня</option>
+                                    <option value="Красота и Здоровье">Красота и Здоровье</option>
+                                    <option value="Детские товары">Детские товары</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-300 uppercase mb-1.5">Маркетплейс</label>
+                                <select id="app-input-platform" class="w-full bg-dark-card border border-dark-border rounded-lg px-3 py-2 text-xs text-white">
+                                    <option value="Wildberries">Wildberries</option>
+                                    <option value="Ozon">Ozon</option>
+                                    <option value="Яндекс.Маркет">Яндекс.Маркет</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 uppercase mb-1.5">Тон повествования</label>
+                            <select id="app-input-tone" class="w-full bg-dark-card border border-dark-border rounded-lg px-3 py-2 text-xs text-white">
+                                <option value="Продающий / Агрессивный">Продающий / Агрессивный</option>
+                                <option value="Премиальный / Люкс">Премиальный / Люкс</option>
+                                <option value="Лаконичный SEO-фокус">Лаконичный SEO-фокус</option>
+                                <option value="Дружелюбный / Заботливый">Дружелюбный / Заботливый</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 uppercase mb-1.5">Ключевые характеристики / Плюсы</label>
+                            <textarea id="app-input-specs" rows="4" placeholder="Объем 4л, подсветка 7 цветов, бесшумный 25дБ, аромакапсула" class="w-full bg-dark-card border border-dark-border rounded-lg p-3 text-xs text-white focus:outline-none focus:border-brand-400 resize-none"></textarea>
+                        </div>
+
+                        <button onclick="runFullAIGeneration()" id="app-generate-btn" class="w-full bg-gradient-to-r from-brand-500 to-brand-400 hover:from-brand-400 hover:to-brand-500 text-black font-bold py-3.5 rounded-xl text-xs glow-button flex items-center justify-center space-x-2">
+                            <i data-lucide="sparkles" class="w-4 h-4"></i>
+                            <span>Сгенерировать полную карточку</span>
+                        </button>
+                    </div>
+
+                    <!-- Structured Generator Results Display -->
+                    <div class="lg:col-span-7 space-y-4">
+                        <div id="app-result-container" class="glass-panel p-6 rounded-2xl border border-dark-border relative min-h-[480px]">
+                            <!-- Loader -->
+                            <div id="app-loader" class="hidden absolute inset-0 bg-dark-card/95 rounded-2xl flex flex-col items-center justify-center space-y-3 z-20">
+                                <div class="w-10 h-10 border-3 border-brand-400 border-t-transparent rounded-full animate-spin"></div>
+                                <span class="text-xs font-semibold text-brand-400">Нейросеть генерирует SEO-карточку...</span>
+                            </div>
+
+                            <div id="app-empty-state" class="flex flex-col items-center justify-center h-full py-16 text-center text-gray-500 space-y-3">
+                                <i data-lucide="sparkles" class="w-12 h-12 text-gray-600"></i>
+                                <p class="text-sm">Заполните форму слева и нажмите "Сгенерировать", чтобы получить оптимизированную карточку.</p>
+                            </div>
+
+                            <div id="app-result-content" class="hidden space-y-6">
+                                <!-- Action Header -->
+                                <div class="flex items-center justify-between pb-4 border-b border-dark-border">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-bold text-white uppercase" id="res-platform-tag">WILDBERRIES</span>
+                                        <span class="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded border border-green-500/30">SEO Score: 96/100</span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <button onclick="sendToPreviewer()" class="text-xs bg-brand-500/20 text-brand-300 hover:bg-brand-500/30 px-3 py-1.5 rounded-lg border border-brand-400/30 flex items-center gap-1">
+                                            <i data-lucide="eye" class="w-3.5 h-3.5"></i> На превью
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Optimized Title -->
+                                <div>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <label class="text-[11px] font-bold text-gray-400 uppercase">Оптимизированный заголовок</label>
+                                        <button onclick="copyToClipboard('res-title', 'Заголовок')" class="text-[11px] text-brand-400 hover:underline flex items-center gap-1">
+                                            <i data-lucide="copy" class="w-3 h-3"></i> Копировать
+                                        </button>
+                                    </div>
+                                    <div id="res-title" class="p-3 bg-dark-card border border-dark-border rounded-lg text-xs font-semibold text-white"></div>
+                                </div>
+
+                                <!-- Description -->
+                                <div>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <label class="text-[11px] font-bold text-gray-400 uppercase">Продающее описание</label>
+                                        <button onclick="copyToClipboard('res-description', 'Описание')" class="text-[11px] text-brand-400 hover:underline flex items-center gap-1">
+                                            <i data-lucide="copy" class="w-3 h-3"></i> Копировать
+                                        </button>
+                                    </div>
+                                    <div id="res-description" class="p-3.5 bg-dark-card border border-dark-border rounded-lg text-xs text-gray-300 leading-relaxed whitespace-pre-line max-h-48 overflow-y-auto custom-scrollbar"></div>
+                                </div>
+
+                                <!-- Infographic Bullet Points -->
+                                <div>
+                                    <label class="text-[11px] font-bold text-gray-400 uppercase block mb-1.5">Тезисы для Инфографики (Слайды)</label>
+                                    <div id="res-infographics" class="grid grid-cols-2 gap-2"></div>
+                                </div>
+
+                                <!-- SEO Keywords -->
+                                <div>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <label class="text-[11px] font-bold text-gray-400 uppercase">Поисковые SEO-Ключи</label>
+                                        <button onclick="copyToClipboard('res-keywords', 'Ключевые слова')" class="text-[11px] text-brand-400 hover:underline flex items-center gap-1">
+                                            <i data-lucide="copy" class="w-3 h-3"></i> Копировать
+                                        </button>
+                                    </div>
+                                    <div id="res-keywords" class="p-3 bg-dark-card border border-dark-border rounded-lg text-xs font-mono text-brand-300 leading-relaxed"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- APP TAB 2: HISTORY WORKSPACE -->
+            <div id="app-workspace-history" class="app-workspace-tab hidden space-y-6">
+                <div class="flex items-center justify-between bg-dark-card border border-dark-border p-4 rounded-xl">
+                    <div>
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i data-lucide="history" class="w-5 h-5 text-brand-400"></i>
+                            Сохраненная история карточек
+                        </h2>
+                        <p class="text-xs text-gray-400">Все ранее сгенерированные тексты хранятся в вашем браузере</p>
+                    </div>
+                    <button onclick="clearHistory()" class="text-xs text-red-400 hover:text-red-300 px-3 py-1.5 border border-red-500/30 rounded-lg">Очистить всю историю</button>
+                </div>
+
+                <div id="history-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Dynamic History Cards -->
+                </div>
+            </div>
+
+
+            <!-- APP TAB 3: INFOGRAPHICS & CARD PREVIEWER -->
+            <div id="app-workspace-previewer" class="app-workspace-tab hidden space-y-6">
+                <div class="bg-dark-card border border-dark-border p-4 rounded-xl">
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i data-lucide="eye" class="w-5 h-5 text-brand-400"></i>
+                        Симулятор Превью Карточки (WB / Ozon)
+                    </h2>
+                    <p class="text-xs text-gray-400">Посмотрите, как ваш сгенерированный заголовок и инфографика смотрятся на витрине</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                    <!-- Live Controls Panel -->
+                    <div class="lg:col-span-5 glass-panel p-6 rounded-2xl border border-dark-border space-y-4">
+                        <h3 class="text-xs font-bold text-white uppercase tracking-wider mb-2">Настройки витрины карточки</h3>
+                        
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Заголовок товара</label>
+                            <input type="text" id="prev-ctrl-title" value="Массажная подушка для шеи и спины" oninput="updateCardPreview()" class="w-full bg-dark-card border border-dark-border rounded-lg p-2.5 text-xs text-white">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Цена (руб)</label>
+                                <input type="number" id="prev-ctrl-price" value="2490" oninput="updateCardPreview()" class="w-full bg-dark-card border border-dark-border rounded-lg p-2 text-xs text-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Старая цена</label>
+                                <input type="number" id="prev-ctrl-oldprice" value="4990" oninput="updateCardPreview()" class="w-full bg-dark-card border border-dark-border rounded-lg p-2 text-xs text-white">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Текст бейджа (Хит/Скидка)</label>
+                            <input type="text" id="prev-ctrl-badge" value="ХИТ ПРОДАЖ -50%" oninput="updateCardPreview()" class="w-full bg-dark-card border border-dark-border rounded-lg p-2 text-xs text-white">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Тезис 1 на фото</label>
+                            <input type="text" id="prev-ctrl-b1" value="3 Режима ИК-прогрева" oninput="updateCardPreview()" class="w-full bg-dark-card border border-dark-border rounded-lg p-2 text-xs text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Тезис 2 на фото</label>
+                            <input type="text" id="prev-ctrl-b2" value="Анатомический роликовый массаж" oninput="updateCardPreview()" class="w-full bg-dark-card border border-dark-border rounded-lg p-2 text-xs text-white">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Цветовой градиент фото</label>
+                            <select id="prev-ctrl-gradient" onchange="updateCardPreview()" class="w-full bg-dark-card border border-dark-border rounded-lg p-2 text-xs text-white">
+                                <option value="from-blue-900 to-indigo-950">Синий Нейон</option>
+                                <option value="from-emerald-900 to-slate-950">Изумруд</option>
+                                <option value="from-purple-900 to-slate-950">Фиолетовый Премиум</option>
+                                <option value="from-rose-900 to-slate-950">Малиновый Градиент</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Simulated Product Card Container -->
+                    <div class="lg:col-span-7 flex justify-center">
+                        <div class="w-full max-w-sm bg-white rounded-2xl overflow-hidden shadow-2xl text-gray-900 border border-gray-200">
+                            <!-- Image Canvas Area -->
+                            <div id="card-prev-bg" class="h-80 bg-gradient-to-br from-blue-900 to-indigo-950 p-4 relative flex flex-col justify-between text-white">
+                                <!-- Badges Header -->
+                                <div class="flex items-center justify-between">
+                                    <span id="card-prev-badge" class="bg-red-500 text-white font-extrabold text-[10px] px-2.5 py-1 rounded-full uppercase shadow">ХИТ ПРОДАЖ -50%</span>
+                                    <span class="bg-black/40 backdrop-blur-md text-white text-[10px] px-2 py-0.5 rounded font-mono">WB Verified</span>
+                                </div>
+
+                                <!-- Photo Simulation Icon -->
+                                <div class="self-center my-auto text-center opacity-80 space-y-1">
+                                    <i data-lucide="package shadow-lg" class="w-16 h-16 mx-auto text-sky-300"></i>
+                                    <span class="text-[10px] text-sky-100 uppercase tracking-widest block font-bold">Фото Товара</span>
+                                </div>
+
+                                <!-- Infographic Overlay Plagues -->
+                                <div class="space-y-1.5">
+                                    <div class="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/20 text-xs font-semibold flex items-center gap-2">
+                                        <i data-lucide="check-circle-2" class="w-4 h-4 text-brand-400"></i>
+                                        <span id="card-prev-b1">3 Режима ИК-прогрева</span>
+                                    </div>
+                                    <div class="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/20 text-xs font-semibold flex items-center gap-2">
+                                        <i data-lucide="check-circle-2" class="w-4 h-4 text-brand-400"></i>
+                                        <span id="card-prev-b2">Анатомический роликовый массаж</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Card Bottom Info -->
+                            <div class="p-4 space-y-2 bg-slate-50">
+                                <div class="flex items-baseline space-x-2">
+                                    <span id="card-prev-price" class="text-xl font-extrabold text-red-600">2 490 ₽</span>
+                                    <span id="card-prev-oldprice" class="text-xs text-gray-400 line-through">4 990 ₽</span>
+                                </div>
+                                <h4 id="card-prev-title" class="text-xs font-semibold text-gray-800 line-clamp-2 leading-snug">Массажная подушка для шеи и спины</h4>
+                                <div class="flex items-center space-x-1 text-[11px] text-amber-500 pt-1 border-t border-gray-200">
+                                    <span>★ 4.9</span>
+                                    <span class="text-gray-400">(128 отзывов)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- APP TAB 4: ANALYTICS & ROI CALCULATOR -->
+            <div id="app-workspace-analytics" class="app-workspace-tab hidden space-y-6">
+                <div class="bg-dark-card border border-dark-border p-4 rounded-xl">
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i data-lucide="line-chart" class="w-5 h-5 text-brand-400"></i>
+                        Симулятор Выручки & ROI Калькулятор
+                    </h2>
+                    <p class="text-xs text-gray-400">Рассчитайте потенциальный прирост выручки после внедрения AI SEO-карточек</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <!-- Interactive Calculator Inputs -->
+                    <div class="lg:col-span-5 glass-panel p-6 rounded-2xl border border-dark-border space-y-4">
+                        <h3 class="text-xs font-bold text-white uppercase">Ваши текущие показатели</h3>
+                        
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Количество товаров (SKU)</label>
+                            <input type="number" id="calc-sku" value="15" oninput="calculateROI()" class="w-full bg-dark-card border border-dark-border rounded-lg p-2.5 text-xs text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Средняя выручка на 1 товар (руб/мес)</label>
+                            <input type="number" id="calc-rev" value="120000" oninput="calculateROI()" class="w-full bg-dark-card border border-dark-border rounded-lg p-2.5 text-xs text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Ожидаемый рост CTR и просмотров (%)</label>
+                            <input type="range" id="calc-growth" min="10" max="100" value="35" oninput="calculateROI()" class="w-full accent-brand-400">
+                            <div class="flex justify-between text-[10px] text-gray-400">
+                                <span>+10%</span>
+                                <span id="calc-growth-val" class="text-brand-400 font-bold">+35%</span>
+                                <span>+100%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Calculated Results & Simulation Chart -->
+                    <div class="lg:col-span-7 space-y-6">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="glass-panel p-5 rounded-2xl border border-dark-border">
+                                <span class="text-xs text-gray-400 block mb-1">Текущий месячный оборот</span>
+                                <span id="res-calc-current" class="text-2xl font-bold text-white">1,800,000 ₽</span>
+                            </div>
+                            <div class="glass-panel p-5 rounded-2xl border border-brand-400/40 glow-effect">
+                                <span class="text-xs text-brand-400 block mb-1">Прогнозируемый оборот с AI</span>
+                                <span id="res-calc-future" class="text-2xl font-bold text-brand-400">2,430,000 ₽</span>
+                            </div>
+                        </div>
+
+                        <!-- Growth Bars Visualizer -->
+                        <div class="glass-panel p-6 rounded-2xl border border-dark-border space-y-4">
+                            <h4 class="text-xs font-bold text-gray-300 uppercase">Сравнение продаж (До / После)</h4>
+                            <div class="space-y-3">
+                                <div>
+                                    <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                        <span>До оптимизации</span>
+                                        <span id="bar-val-before">1.8М ₽</span>
+                                    </div>
+                                    <div class="w-full bg-dark-card h-4 rounded-full overflow-hidden border border-dark-border">
+                                        <div id="bar-before" class="bg-gray-600 h-full rounded-full" style="width: 60%;"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-xs text-brand-400 mb-1">
+                                        <span>После внедрения MarketPulse AI</span>
+                                        <span id="bar-val-after" class="font-bold">2.43М ₽</span>
+                                    </div>
+                                    <div class="w-full bg-dark-card h-4 rounded-full overflow-hidden border border-dark-border">
+                                        <div id="bar-after" class="bg-gradient-to-r from-brand-500 to-brand-400 h-full rounded-full transition-all duration-500" style="width: 85%;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- SETTINGS / API KEY MODAL -->
+    <div id="settings-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="glass-panel rounded-2xl border border-dark-border max-w-md w-full p-6 space-y-4 relative">
+            <button onclick="closeSettingsModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                <i data-lucide="settings" class="w-5 h-5 text-brand-400"></i>
+                Настройки Gemini API
+            </h3>
+            <p class="text-xs text-gray-400">
+                Приложение использует по умолчанию встроенный ключ Canvas. Вы также можете указать свой личный Gemini API ключ.
+            </p>
+            <div>
+                <label class="block text-xs font-semibold text-gray-300 uppercase mb-1">Кастомный API Key</label>
+                <input type="password" id="custom-api-key" placeholder="AIzaSy..." class="w-full bg-dark-card border border-dark-border rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-brand-400">
+            </div>
+            <div class="flex justify-end space-x-2 pt-2">
+                <button onclick="saveApiKey()" class="bg-brand-400 hover:bg-brand-500 text-black text-xs font-bold px-4 py-2 rounded-lg glow-button">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-dark-card border-t border-dark-border py-8 text-gray-400 text-xs mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="w-6 h-6 rounded-lg bg-brand-400 flex items-center justify-center text-black font-bold">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                </div>
+                <span class="text-sm font-bold text-white">MarketPulse AI SaaS Platform</span>
+            </div>
+            <div>© 2026 MarketPulse AI Inc. Все права защищены.</div>
+        </div>
+    </footer>
+
+    <!-- Full App Logic -->
+    <script>
+        // Init Lucide Icons
+        lucide.createIcons();
+
+        // Application State
+        let currentView = 'landing'; // 'landing' or 'app'
+        let currentAppTab = 'generator'; // 'generator', 'history', 'previewer', 'analytics'
+        let lastGeneratedCard = null;
+        let cardHistory = JSON.parse(localStorage.getItem('mp_card_history') || '[]');
+
+        // Initialize App on Load
+        window.onload = function() {
+            updateHistoryBadge();
+            renderHistoryGrid();
+            calculateROI();
+        };
+
+        // Toast Helper
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast px-4 py-3 rounded-xl border text-xs font-medium shadow-lg flex items-center gap-2 ${
+                type === 'success' ? 'bg-emerald-950/90 border-emerald-500/40 text-emerald-200' : 'bg-red-950/90 border-red-500/40 text-red-200'
+            }`;
+            toast.innerHTML = `<i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}" class="w-4 h-4"></i> ${message}`;
+            container.appendChild(toast);
+            lucide.createIcons();
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // View Mode Switcher (Landing vs App Workspace)
+        function switchViewMode(mode) {
+            currentView = mode;
+            const landingView = document.getElementById('view-landing');
+            const appView = document.getElementById('view-app');
+            const landingNav = document.getElementById('landing-nav');
+            const appNav = document.getElementById('app-nav');
+            const landingActions = document.getElementById('landing-actions');
+            const appActions = document.getElementById('app-actions');
+
+            if (mode === 'app') {
+                landingView.classList.add('hidden');
+                appView.classList.remove('hidden');
+                landingNav.classList.add('hidden');
+                appNav.classList.remove('hidden');
+                landingActions.classList.add('hidden');
+                appActions.classList.remove('hidden');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+                appView.classList.add('hidden');
+                landingView.classList.remove('hidden');
+                appNav.classList.add('hidden');
+                landingNav.classList.remove('hidden');
+                appActions.classList.add('hidden');
+                landingActions.classList.remove('hidden');
+            }
+        }
+
+        // App Workspace Tab Switcher
+        function switchAppTab(tabId) {
+            currentAppTab = tabId;
+            document.querySelectorAll('.app-workspace-tab').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.app-tab-btn').forEach(btn => {
+                btn.classList.remove('text-brand-400', 'font-semibold', 'border-b-2', 'border-brand-400');
+                btn.classList.add('hover:text-white');
+            });
+
+            const targetTab = document.getElementById(`app-workspace-${tabId}`);
+            if (targetTab) targetTab.classList.remove('hidden');
+
+            const activeBtn = document.getElementById(`app-tab-btn-${tabId}`);
+            if (activeBtn) {
+                activeBtn.classList.add('text-brand-400', 'font-semibold', 'border-b-2', 'border-brand-400');
+            }
+        }
+
+        // Gemini API Helper
+        function getApiKey() {
+            return localStorage.getItem('mp_custom_api_key') || "";
+        }
+
+        // Full AI Card Generation Logic
+        async function runFullAIGeneration() {
+            const title = document.getElementById('app-input-title').value.trim();
+            const category = document.getElementById('app-input-category').value;
+            const platform = document.getElementById('app-input-platform').value;
+            const tone = document.getElementById('app-input-tone').value;
+            const specs = document.getElementById('app-input-specs').value.trim();
+
+            if (!title) {
+                showToast('Пожалуйста, введите название товара', 'error');
+                return;
+            }
+
+            const loader = document.getElementById('app-loader');
+            const emptyState = document.getElementById('app-empty-state');
+            const resultContent = document.getElementById('app-result-content');
+
+            loader.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+
+            const apiKey = getApiKey();
+            const systemPrompt = "Ты лучший копирайтер и SEO-специалист маркетплейсов Wildberries и Ozon. Верни ответ СТРОГО в формате JSON без разметки markdown.";
+            const userPrompt = `Создай карточку товара:\nТовар: ${title}\nКатегория: ${category}\nМаркетплейс: ${platform}\nТон: ${tone}\nХарактеристики: ${specs}\n\nВерни JSON объект со следующей структурой:\n{\n  "title": "SEO заголовок товара (до 100 символов)",\n  "description": "Подробное продающее описание с эмодзи",\n  "infographics": ["Тезис 1", "Тезис 2", "Тезис 3", "Тезис 4"],\n  "keywords": "список, ключевых, слов, через, запятую"\n}`;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: userPrompt }] }],
+                        systemInstruction: { parts: [{ text: systemPrompt }] }
+                    })
+                });
+
+                const data = await response.json();
+                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                let parsed;
+                try {
+                    const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                    parsed = JSON.parse(cleanJson);
+                } catch(e) {
+                    parsed = getFallbackCardData(title, platform, specs);
+                }
+
+                renderGeneratedCard(parsed, platform);
+                saveToHistory(parsed, platform);
+                showToast('Карточка успешно сгенерирована!');
+            } catch (err) {
+                const fallback = getFallbackCardData(title, platform, specs);
+                renderGeneratedCard(fallback, platform);
+                saveToHistory(fallback, platform);
+                showToast('Сгенерировано с использованием шаблонов');
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+
+        function getFallbackCardData(title, platform, specs) {
+            return {
+                title: `${title} премиум качество [Оптимизировано для ${platform}]`,
+                description: `Инновационный ${title} созданный специально для комфорта и долговечности. Оснащен всеми современными функциями.\n\nПреимущества:\n• Высокая надежность и стильный дизайн\n• Характеристики: ${specs}\n• Гарантия качества от производителя`,
+                infographics: ["Гарантия 2 года", "Быстрая доставка", "Высокая мощность", "Премиум материалы"],
+                keywords: `${title.toLowerCase()}, купить ${title.toLowerCase()}, подарок, ${platform} топовый выбор`
+            };
+        }
+
+        function renderGeneratedCard(card, platform) {
+            lastGeneratedCard = card;
+            document.getElementById('res-platform-tag').innerText = platform;
+            document.getElementById('res-title').innerText = card.title;
+            document.getElementById('res-description').innerText = card.description;
+            document.getElementById('res-keywords').innerText = card.keywords;
+
+            const infoGrid = document.getElementById('res-infographics');
+            infoGrid.innerHTML = card.infographics.map(bullet => `
+                <div class="p-2 bg-dark-card border border-dark-border rounded-lg text-xs text-gray-300 flex items-center gap-1.5">
+                    <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-brand-400"></i>
+                    <span>${bullet}</span>
+                </div>
+            `).join('');
+
+            document.getElementById('app-result-content').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        // History Storage
+        function saveToHistory(card, platform) {
+            const newItem = {
+                id: Date.now(),
+                platform,
+                card,
+                date: new Date().toLocaleDateString('ru-RU')
+            };
+            cardHistory.unshift(newItem);
+            localStorage.setItem('mp_card_history', JSON.stringify(cardHistory));
+            updateHistoryBadge();
+            renderHistoryGrid();
+        }
+
+        function updateHistoryBadge() {
+            document.getElementById('history-count-badge').innerText = cardHistory.length;
+        }
+
+        function renderHistoryGrid() {
+            const grid = document.getElementById('history-grid');
+            if (cardHistory.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-12 text-gray-500 text-xs">История пока пуста. Сгенерируйте свою первую карточку!</div>`;
+                return;
+            }
+
+            grid.innerHTML = cardHistory.map(item => `
+                <div class="glass-panel p-5 rounded-xl border border-dark-border flex flex-col justify-between space-y-3">
+                    <div>
+                        <div class="flex items-center justify-between text-[10px] text-gray-400 mb-2">
+                            <span class="bg-brand-500/20 text-brand-300 px-2 py-0.5 rounded font-bold">${item.platform}</span>
+                            <span>${item.date}</span>
+                        </div>
+                        <h4 class="text-xs font-bold text-white line-clamp-2">${item.card.title}</h4>
+                        <p class="text-[11px] text-gray-400 line-clamp-3 mt-1">${item.card.description}</p>
+                    </div>
+                    <div class="flex items-center justify-between pt-2 border-t border-dark-border">
+                        <button onclick='loadHistoryItem(${item.id})' class="text-xs text-brand-400 hover:underline">Открыть</button>
+                        <button onclick='deleteHistoryItem(${item.id})' class="text-xs text-red-400 hover:underline">Удалить</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function loadHistoryItem(id) {
+            const item = cardHistory.find(i => i.id === id);
+            if (item) {
+                switchAppTab('generator');
+                renderGeneratedCard(item.card, item.platform);
+                showToast('Карточка загружена из истории');
+            }
+        }
+
+        function deleteHistoryItem(id) {
+            cardHistory = cardHistory.filter(i => i.id !== id);
+            localStorage.setItem('mp_card_history', JSON.stringify(cardHistory));
+            updateHistoryBadge();
+            renderHistoryGrid();
+            showToast('Запись удалена');
+        }
+
+        function clearHistory() {
+            cardHistory = [];
+            localStorage.removeItem('mp_card_history');
+            updateHistoryBadge();
+            renderHistoryGrid();
+            showToast('История очищена');
+        }
+
+        // Live Card Previewer Update
+        function updateCardPreview() {
+            const title = document.getElementById('prev-ctrl-title').value;
+            const price = document.getElementById('prev-ctrl-price').value;
+            const oldprice = document.getElementById('prev-ctrl-oldprice').value;
+            const badge = document.getElementById('prev-ctrl-badge').value;
+            const b1 = document.getElementById('prev-ctrl-b1').value;
+            const b2 = document.getElementById('prev-ctrl-b2').value;
+            const gradient = document.getElementById('prev-ctrl-gradient').value;
+
+            document.getElementById('card-prev-title').innerText = title || 'Название товара';
+            document.getElementById('card-prev-price').innerText = `${price} ₽`;
+            document.getElementById('card-prev-oldprice').innerText = `${oldprice} ₽`;
+            document.getElementById('card-prev-badge').innerText = badge;
+            document.getElementById('card-prev-b1').innerText = b1;
+            document.getElementById('card-prev-b2').innerText = b2;
+
+            const bg = document.getElementById('card-prev-bg');
+            bg.className = `h-80 bg-gradient-to-br ${gradient} p-4 relative flex flex-col justify-between text-white`;
+        }
+
+        function sendToPreviewer() {
+            if (!lastGeneratedCard) return;
+            switchAppTab('previewer');
+            document.getElementById('prev-ctrl-title').value = lastGeneratedCard.title;
+            if (lastGeneratedCard.infographics[0]) document.getElementById('prev-ctrl-b1').value = lastGeneratedCard.infographics[0];
+            if (lastGeneratedCard.infographics[1]) document.getElementById('prev-ctrl-b2').value = lastGeneratedCard.infographics[1];
+            updateCardPreview();
+            showToast('Перенесено в визуальное превью!');
+        }
+
+        // ROI Calculator Logic
+        function calculateROI() {
+            const sku = parseFloat(document.getElementById('calc-sku').value) || 0;
+            const rev = parseFloat(document.getElementById('calc-rev').value) || 0;
+            const growth = parseFloat(document.getElementById('calc-growth').value) || 0;
+
+            document.getElementById('calc-growth-val').innerText = `+${growth}%`;
+
+            const currentTotal = sku * rev;
+            const futureTotal = currentTotal * (1 + growth / 100);
+
+            document.getElementById('res-calc-current').innerText = `${currentTotal.toLocaleString('ru-RU')} ₽`;
+            document.getElementById('res-calc-future').innerText = `${Math.round(futureTotal).toLocaleString('ru-RU')} ₽`;
+
+            document.getElementById('bar-val-before').innerText = `${(currentTotal / 1000000).toFixed(2)}М ₽`;
+            document.getElementById('bar-val-after').innerText = `${(futureTotal / 1000000).toFixed(2)}М ₽`;
+        }
+
+        // Sample Data Helper
+        function loadSampleData() {
+            document.getElementById('app-input-title').value = "Увлажнитель воздуха ультразвуковой";
+            document.getElementById('app-input-category').value = "Дом и Кухня";
+            document.getElementById('app-input-platform').value = "Wildberries";
+            document.getElementById('app-input-tone').value = "Продающий / Агрессивный";
+            document.getElementById('app-input-specs').value = "Резервуар 4.5л, 7 цветов подсветки, сенсорное управление, аромакапсула, площадь до 35м2";
+            showToast('Демо-данные загружены в форму');
+        }
+
+        function clearGeneratorForm() {
+            document.getElementById('app-input-title').value = "";
+            document.getElementById('app-input-specs').value = "";
+        }
+
+        // Copy Helper
+        function copyToClipboard(elementId, label) {
+            const text = document.getElementById(elementId).innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                showToast(`${label} скопирован в буфер!`);
+            });
+        }
+
+        // Landing Quick Demo
+        async function runQuickDemo() {
+            const title = document.getElementById('demo-title').value;
+            const loader = document.getElementById('demo-loader');
+            const output = document.getElementById('demo-output-text');
+            loader.classList.remove('hidden');
+
+            setTimeout(() => {
+                output.innerHTML = `
+                    <div class="space-y-1 text-xs">
+                        <strong class="text-brand-400 block">${title} — Высокий рейтинг!</strong>
+                        <p>Инновационное устройство премиум-класса с быстрой доставкой по РФ. Почувствуйте комфорт с первых минут использования.</p>
+                        <p class="text-gray-400 font-mono text-[11px] pt-1">SEO-ключи: ${title.toLowerCase()}, купить ${title.toLowerCase()}, подарок, топовый товар</p>
+                    </div>
+                `;
+                loader.classList.add('hidden');
+            }, 1000);
+        }
+
+        // Settings Modal
+        function openSettingsModal() {
+            document.getElementById('settings-modal').classList.remove('hidden');
+            document.getElementById('custom-api-key').value = localStorage.getItem('mp_custom_api_key') || '';
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settings-modal').classList.add('hidden');
+        }
+
+        function saveApiKey() {
+            const key = document.getElementById('custom-api-key').value.trim();
+            if (key) {
+                localStorage.setItem('mp_custom_api_key', key);
+            } else {
+                localStorage.removeItem('mp_custom_api_key');
+            }
+            closeSettingsModal();
+            showToast('Настройки API сохранены');
+        }
+    </script>
+</body>
+</html>
